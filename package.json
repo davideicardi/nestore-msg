@@ -27,6 +27,6 @@
     "@types/node": "8.0.24",
     "mongodb": "2.2.30",
     "debug": "3.0.1",
-    "nestore-js-mongodb": "1.6.1"
+    "nestore-js-mongodb": "1.6.2"
   }
 }

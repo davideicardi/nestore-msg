@@ -9,7 +9,7 @@ import * as uuid from "uuid";
 const mongodbConnection = "mongodb://localhost:27017/nestore-msg";
 
 describe("Given a Stream", function() {
-	this.slow(600);
+	this.slow(1300);
 	this.timeout(20000);
 
 	let bucketName: string;
@@ -21,6 +21,7 @@ describe("Given a Stream", function() {
 			url: mongodbConnection,
 			waitInterval: 100,
 			streamId: uuid.v4(),
+			startingPoint: nestoreMsg.ReadStartingPoint.fromBeginning,
 			bucket: bucketName });
 	});
 
@@ -28,8 +29,8 @@ describe("Given a Stream", function() {
 		await cleanUpDatabase();
 	});
 
-	it("should be possile to write events", async function() {
-		await stream.write(async () => [{name: "A", body: "x"}]);
+	it("should be possile to write an event", async function() {
+		await stream.write(async () => [{name: "ABC", body: "xyz"}]);
 	});
 
 	it("should be possile to subscribe to wait event", async function() {
@@ -39,45 +40,65 @@ describe("Given a Stream", function() {
 		});
 	});
 
-	describe("Given a new event", function() {
-		beforeEach(async function() {
-			await stream.write(async () => [{name: "A", body: "x"}]);
+	describe("Given a subscriptor (once)", function() {
+		const EVENT_A = "EA";
+		let received: any[];
+		beforeEach(function() {
+			received = [];
+			stream.once(EVENT_A, (body) => received.push(body));
 		});
 
-		it("should be possile to susbscribe to it", async function() {
-			await new Promise((resolve, reject) => {
-				stream.on("error", (err) => reject(err));
-				stream.on("A", (body) => body === "x" ? resolve() : reject("Invalid body " + body));
-			});
+		it("should be possile to send one event and receive it", async function() {
+			await stream.write(async () => [{name: EVENT_A, body: "x"}]);
+
+			while (received.length !== 1) {
+				await sleep(10);
+			}
+			assert.equal(received[0], "x");
 		});
 
-		it("should be possile to susbscribe to it once", async function() {
-			await new Promise((resolve, reject) => {
-				stream.on("error", (err) => reject(err));
-				stream.once("A", (body) => body === "x" ? resolve() : reject("Invalid body " + body));
-			});
+		it("should be possile to send many events and receive the first one", async function() {
+			const COUNT = 100;
+			for (let i = 0; i < COUNT; i++) {
+				await stream.write(async () => [{name: EVENT_A, body: i}]);
+			}
+
+			while (received.length !== 1) {
+				await sleep(10);
+			}
+			assert.equal(received[0], 0);
+		});
+	});
+
+	describe("Given a subscriptor (on)", function() {
+		const EVENT_B = "EB";
+		let received: any[];
+		beforeEach(function() {
+			received = [];
+			stream.on(EVENT_B, (body) => received.push(body));
 		});
 
-		describe("Given another event", function() {
-			beforeEach(async function() {
-				await stream.write(async () => [{name: "B", body: "y"}]);
-			});
+		it("should be possile to send one event and receive it", async function() {
+			await stream.write(async () => [{name: EVENT_B, body: "x"}]);
 
-			it("should be possile to susbscribe to it", async function() {
-				await new Promise((resolve, reject) => {
-					stream.on("error", (err) => reject(err));
-					stream.on("A", (body) => body === "x" ? resolve() : reject("Invalid body " + body));
-					stream.on("B", (body) => body === "y" ? resolve() : reject("Invalid body " + body));
-				});
-			});
+			while (received.length !== 1) {
+				await sleep(10);
+			}
+			assert.equal(received[0], "x");
+		});
 
-			it("should be possile to susbscribe to it once", async function() {
-				await new Promise((resolve, reject) => {
-					stream.on("error", (err) => reject(err));
-					stream.once("A", (body) => body === "x" ? resolve() : reject("Invalid body " + body));
-					stream.once("B", (body) => body === "y" ? resolve() : reject("Invalid body " + body));
-				});
-			});
+		it("should be possile to send many events and receive it in order", async function() {
+			const COUNT = 100;
+			for (let i = 0; i < COUNT; i++) {
+				await stream.write(async () => [{name: EVENT_B, body: i}]);
+			}
+
+			while (received.length !== COUNT) {
+				await sleep(10);
+			}
+			for (let i = 0; i < COUNT; i++) {
+				assert.equal(received[i], i);
+			}
 		});
 	});
 
@@ -111,4 +132,10 @@ function makeId()	{
 	}
 
 	return text;
+}
+
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => {
+		setTimeout(resolve, ms);
+	});
 }

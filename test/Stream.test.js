@@ -8,12 +8,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const chai_1 = require("chai");
 const nestore = require("nestore-js-mongodb");
 const nestoreMsg = require("../index");
 const uuid = require("uuid");
 const mongodbConnection = "mongodb://localhost:27017/nestore-msg";
 describe("Given a Stream", function () {
-    this.slow(600);
+    this.slow(1300);
     this.timeout(20000);
     let bucketName;
     let stream;
@@ -23,6 +24,7 @@ describe("Given a Stream", function () {
             url: mongodbConnection,
             waitInterval: 100,
             streamId: uuid.v4(),
+            startingPoint: nestoreMsg.ReadStartingPoint.fromBeginning,
             bucket: bucketName
         });
     });
@@ -31,9 +33,9 @@ describe("Given a Stream", function () {
             yield cleanUpDatabase();
         });
     });
-    it("should be possile to write events", function () {
+    it("should be possile to write an event", function () {
         return __awaiter(this, void 0, void 0, function* () {
-            yield stream.write(() => __awaiter(this, void 0, void 0, function* () { return [{ name: "A", body: "x" }]; }));
+            yield stream.write(() => __awaiter(this, void 0, void 0, function* () { return [{ name: "ABC", body: "xyz" }]; }));
         });
     });
     it("should be possile to subscribe to wait event", function () {
@@ -44,51 +46,63 @@ describe("Given a Stream", function () {
             });
         });
     });
-    describe("Given a new event", function () {
+    describe("Given a subscriptor (once)", function () {
+        const EVENT_A = "EA";
+        let received;
         beforeEach(function () {
+            received = [];
+            stream.once(EVENT_A, (body) => received.push(body));
+        });
+        it("should be possile to send one event and receive it", function () {
             return __awaiter(this, void 0, void 0, function* () {
-                yield stream.write(() => __awaiter(this, void 0, void 0, function* () { return [{ name: "A", body: "x" }]; }));
+                yield stream.write(() => __awaiter(this, void 0, void 0, function* () { return [{ name: EVENT_A, body: "x" }]; }));
+                while (received.length !== 1) {
+                    yield sleep(10);
+                }
+                chai_1.assert.equal(received[0], "x");
             });
         });
-        it("should be possile to susbscribe to it", function () {
+        it("should be possile to send many events and receive the first one", function () {
             return __awaiter(this, void 0, void 0, function* () {
-                yield new Promise((resolve, reject) => {
-                    stream.on("error", (err) => reject(err));
-                    stream.on("A", (body) => body === "x" ? resolve() : reject("Invalid body " + body));
-                });
+                const COUNT = 100;
+                for (let i = 0; i < COUNT; i++) {
+                    yield stream.write(() => __awaiter(this, void 0, void 0, function* () { return [{ name: EVENT_A, body: i }]; }));
+                }
+                while (received.length !== 1) {
+                    yield sleep(10);
+                }
+                chai_1.assert.equal(received[0], 0);
             });
         });
-        it("should be possile to susbscribe to it once", function () {
+    });
+    describe("Given a subscriptor (on)", function () {
+        const EVENT_B = "EB";
+        let received;
+        beforeEach(function () {
+            received = [];
+            stream.on(EVENT_B, (body) => received.push(body));
+        });
+        it("should be possile to send one event and receive it", function () {
             return __awaiter(this, void 0, void 0, function* () {
-                yield new Promise((resolve, reject) => {
-                    stream.on("error", (err) => reject(err));
-                    stream.once("A", (body) => body === "x" ? resolve() : reject("Invalid body " + body));
-                });
+                yield stream.write(() => __awaiter(this, void 0, void 0, function* () { return [{ name: EVENT_B, body: "x" }]; }));
+                while (received.length !== 1) {
+                    yield sleep(10);
+                }
+                chai_1.assert.equal(received[0], "x");
             });
         });
-        describe("Given another event", function () {
-            beforeEach(function () {
-                return __awaiter(this, void 0, void 0, function* () {
-                    yield stream.write(() => __awaiter(this, void 0, void 0, function* () { return [{ name: "B", body: "y" }]; }));
-                });
-            });
-            it("should be possile to susbscribe to it", function () {
-                return __awaiter(this, void 0, void 0, function* () {
-                    yield new Promise((resolve, reject) => {
-                        stream.on("error", (err) => reject(err));
-                        stream.on("A", (body) => body === "x" ? resolve() : reject("Invalid body " + body));
-                        stream.on("B", (body) => body === "y" ? resolve() : reject("Invalid body " + body));
-                    });
-                });
-            });
-            it("should be possile to susbscribe to it once", function () {
-                return __awaiter(this, void 0, void 0, function* () {
-                    yield new Promise((resolve, reject) => {
-                        stream.on("error", (err) => reject(err));
-                        stream.once("A", (body) => body === "x" ? resolve() : reject("Invalid body " + body));
-                        stream.once("B", (body) => body === "y" ? resolve() : reject("Invalid body " + body));
-                    });
-                });
+        it("should be possile to send many events and receive it in order", function () {
+            return __awaiter(this, void 0, void 0, function* () {
+                const COUNT = 100;
+                for (let i = 0; i < COUNT; i++) {
+                    yield stream.write(() => __awaiter(this, void 0, void 0, function* () { return [{ name: EVENT_B, body: i }]; }));
+                }
+                while (received.length !== COUNT) {
+                    yield sleep(10);
+                }
+                for (let i = 0; i < COUNT; i++) {
+                    chai_1.assert.equal(received[i], i);
+                }
             });
         });
     });
@@ -121,5 +135,10 @@ function makeId() {
         text += possible.charAt(Math.floor(Math.random() * possible.length));
     }
     return text;
+}
+function sleep(ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
 }
 //# sourceMappingURL=Stream.test.js.map

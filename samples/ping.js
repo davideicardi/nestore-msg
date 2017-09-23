@@ -1,4 +1,5 @@
 "use strict";
+// tslint:disable:no-console
 Object.defineProperty(exports, "__esModule", { value: true });
 const nestoreMsg = require("../index");
 const mongodbConnection = "mongodb://localhost:27017/nestore-msg";
@@ -9,29 +10,24 @@ const waitInterval = 500;
 const stream = new nestoreMsg.Stream({
     url: mongodbConnection, bucket, streamId, startingPoint, waitInterval
 });
-const instanceId = makeId();
-let receivedCount = 0;
+let currentId = "";
 stream.on("pong", (x) => {
-    receivedCount++;
+    if (currentId !== x.id) {
+        return;
+    }
     const elapsed = new Date().getTime() - x.time.getTime();
-    // tslint:disable-next-line:no-console
-    console.log(`${x.id} received in ${elapsed}ms from ${x.instanceId} (tot: ${receivedCount})`);
+    console.log(`<== pong (${elapsed}ms)`);
+    ping(makeId());
 });
-for (let id = 0; id < 10; id++) {
-    // tslint:disable-next-line:no-console
+ping(makeId());
+function ping(id) {
+    currentId = id;
     console.log("ping ==>", id);
-    stream.emit("ping", { id, instanceId, time: new Date() });
+    stream.emit("ping", { id, time: new Date() });
 }
-// let id = 1;
-// setInterval(() => {
-// 	// tslint:disable-next-line:no-console
-// 	console.log("ping ==>", id);
-// 	stream.emit("ping", {id, instanceId, time: new Date()});
-// 	id++;
-// }, 200);
 function makeId() {
     let text = "";
-    const possible = "abcdefghijklmnopqrstuvwxyz";
+    const possible = "abcdefghijklmnopqrstuvwxyz0123456789";
     for (let i = 0; i < 5; i++) {
         text += possible.charAt(Math.floor(Math.random() * possible.length));
     }

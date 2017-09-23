@@ -1,3 +1,5 @@
+// tslint:disable:no-console
+
 import * as nestoreMsg from "../index";
 import * as uuid from "uuid";
 
@@ -7,40 +9,37 @@ const streamId = "2a635734-44e0-46f1-8118-f2538e32debb";
 const startingPoint = nestoreMsg.ReadStartingPoint.fromLast;
 const waitInterval = 500;
 interface PingEvent {
-	id: number;
-	instanceId: string;
+	id: string;
 	time: Date;
 }
 const stream = new nestoreMsg.Stream<PingEvent>({
 	url: mongodbConnection, bucket, streamId, startingPoint, waitInterval });
 
-const instanceId = makeId();
-let receivedCount = 0;
+let currentId: string = "";
+
 stream.on("pong", (x) => {
-	receivedCount++;
+	if (currentId !== x.id) {
+		return;
+	}
 
 	const elapsed = new Date().getTime() - x.time.getTime();
-	// tslint:disable-next-line:no-console
-	console.log(`${x.id} received in ${elapsed}ms from ${x.instanceId} (tot: ${receivedCount})`);
+	console.log(`<== pong (${elapsed}ms)`);
+
+	ping(makeId());
 });
 
-for (let id = 0; id < 10; id++) {
-	// tslint:disable-next-line:no-console
-	console.log("ping ==>", id);
-	stream.emit("ping", {id, instanceId, time: new Date()});
-}
+ping(makeId());
 
-// let id = 1;
-// setInterval(() => {
-// 	// tslint:disable-next-line:no-console
-// 	console.log("ping ==>", id);
-// 	stream.emit("ping", {id, instanceId, time: new Date()});
-// 	id++;
-// }, 200);
+function ping(id: string) {
+	currentId = id;
+
+	console.log("ping ==>", id);
+	stream.emit("ping", {id, time: new Date()});
+}
 
 function makeId()	{
 	let text = "";
-	const possible = "abcdefghijklmnopqrstuvwxyz";
+	const possible = "abcdefghijklmnopqrstuvwxyz0123456789";
 
 	for (let i = 0; i < 5; i++) {
 		text += possible.charAt(Math.floor(Math.random() * possible.length));

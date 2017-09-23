@@ -24,6 +24,8 @@ export interface EventData<T> {
 
 export type CreateCommit<T> = () => Promise<Array<EventData<T>>>;
 
+const DEFAULT_WAIT_INTERVAL = 2000;
+
 export class Stream<T> extends EventEmitter {
 	private eventStore?: nestore.EventStore;
 	private bucket?: nestore.Bucket;
@@ -38,13 +40,14 @@ export class Stream<T> extends EventEmitter {
 	async disconnect(): Promise<void> {
 		const pr = this.projection;
 		this.projection = undefined;
-		if (pr) {
-			await pr.close();
-		}
 
 		const es = this.eventStore;
 		this.bucket = undefined;
 		this.eventStore = undefined;
+
+		if (pr) {
+			await pr.close();
+		}
 
 		if (es) {
 			await es.close();
@@ -52,12 +55,16 @@ export class Stream<T> extends EventEmitter {
 	}
 
 	async connect(): Promise<void> {
+		if (this.projection) {
+			return;
+		}
+
 		if (this.connecting) {
 			await this.connecting;
 			return;
 		}
 
-		this.connecting = this._connect();
+		this.connecting = this.connectAsync();
 		try {
 			await this.connecting;
 		} finally {
@@ -97,9 +104,8 @@ export class Stream<T> extends EventEmitter {
 				return; // done
 			} catch (err) {
 				if (err instanceof nestore.ConcurrencyError) {
-					debug(`Concurrency error while writing evens for ${this.options.bucket}:${this.options.streamId}, retrying...`);
-					// wait and retry
-					await this.sleep(1000);
+					debug(`Concurrency error while writing events for ${this.options.bucket}:${this.options.streamId}, retrying...`);
+					await this.waitConcurrency();
 				} else {
 					throw err;
 				}
@@ -111,8 +117,6 @@ export class Stream<T> extends EventEmitter {
 		if (event === "error") {
 			return super.emit(event, body);
 		}
-
-		debug(`Emitting event ${event} for ${this.options.bucket}:${this.options.streamId}...`);
 
 		const bodyT = body as T;
 
@@ -146,9 +150,10 @@ export class Stream<T> extends EventEmitter {
 		return super.removeListener(event, listener);
 	}
 
-	private async _connect(): Promise<void> {
-		await this.connectToBucket();
-		await this.connectToProjection();
+	private waitConcurrency() {
+		// wait and retry
+		const waitConcurrency = (this.options.waitInterval || DEFAULT_WAIT_INTERVAL) / 10;
+		return this.sleep(waitConcurrency);
 	}
 
 	private connectSync(): void {
@@ -156,11 +161,12 @@ export class Stream<T> extends EventEmitter {
 		.catch((err) => super.emit("error", err));
 	}
 
-	private async connectToBucket(): Promise<void> {
-		if (this.bucket) {
-			return;
-		}
+	private async connectAsync(): Promise<void> {
+		await this.connectToBucket();
+		await this.connectToProjection();
+	}
 
+	private async connectToBucket(): Promise<void> {
 		const es = new nestore.EventStore(this.options);
 		await es.connect();
 		this.eventStore = es;
@@ -168,17 +174,13 @@ export class Stream<T> extends EventEmitter {
 	}
 
 	private async connectToProjection(): Promise<void> {
-		if (this.projection) {
-			return;
-		}
-
 		const bucket = this.bucket;
 		if (!bucket) {
 			throw new Error("Not initialized");
 		}
 
 		const streamId = this.options.streamId;
-		const waitInterval = this.options.waitInterval || 2000;
+		const waitInterval = this.options.waitInterval || DEFAULT_WAIT_INTERVAL;
 		const startingPoint = this.options.startingPoint || ReadStartingPoint.fromBeginning;
 
 		let fromBucketRevision = 0;
@@ -207,7 +209,9 @@ export class Stream<T> extends EventEmitter {
 	}
 
 	private applyCommit(commit: nestore.CommitData) {
-		this.nextRevision = commit.StreamRevisionEnd;
+		if (!this.nextRevision || commit.StreamRevisionEnd > this.nextRevision) {
+			this.nextRevision = commit.StreamRevisionEnd;
+		}
 		for (const e of commit.Events as Array<EventData<T>>) {
 			super.emit(e.name, e.body);
 		}

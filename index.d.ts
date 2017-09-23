@@ -34,8 +34,9 @@ export declare class Stream<T> extends EventEmitter {
     prependListener(event: string | symbol, listener: (body: T) => void): this;
     prependOnceListener(event: string | symbol, listener: (body: T) => void): this;
     removeListener(event: string | symbol, listener: (body: T) => void): this;
-    private _connect();
+    private waitConcurrency();
     private connectSync();
+    private connectAsync();
     private connectToBucket();
     private connectToProjection();
     private applyCommit(commit);

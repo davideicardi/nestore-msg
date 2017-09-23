@@ -18,6 +18,7 @@ var ReadStartingPoint;
     ReadStartingPoint[ReadStartingPoint["fromBeginning"] = 1] = "fromBeginning";
     ReadStartingPoint[ReadStartingPoint["fromLast"] = 2] = "fromLast";
 })(ReadStartingPoint = exports.ReadStartingPoint || (exports.ReadStartingPoint = {}));
+const DEFAULT_WAIT_INTERVAL = 2000;
 class Stream extends events_1.EventEmitter {
     constructor(options) {
         super();
@@ -27,12 +28,12 @@ class Stream extends events_1.EventEmitter {
         return __awaiter(this, void 0, void 0, function* () {
             const pr = this.projection;
             this.projection = undefined;
-            if (pr) {
-                yield pr.close();
-            }
             const es = this.eventStore;
             this.bucket = undefined;
             this.eventStore = undefined;
+            if (pr) {
+                yield pr.close();
+            }
             if (es) {
                 yield es.close();
             }
@@ -40,11 +41,14 @@ class Stream extends events_1.EventEmitter {
     }
     connect() {
         return __awaiter(this, void 0, void 0, function* () {
+            if (this.projection) {
+                return;
+            }
             if (this.connecting) {
                 yield this.connecting;
                 return;
             }
-            this.connecting = this._connect();
+            this.connecting = this.connectAsync();
             try {
                 yield this.connecting;
             }
@@ -82,9 +86,8 @@ class Stream extends events_1.EventEmitter {
                 }
                 catch (err) {
                     if (err instanceof nestore.ConcurrencyError) {
-                        debug(`Concurrency error while writing evens for ${this.options.bucket}:${this.options.streamId}, retrying...`);
-                        // wait and retry
-                        yield this.sleep(1000);
+                        debug(`Concurrency error while writing events for ${this.options.bucket}:${this.options.streamId}, retrying...`);
+                        yield this.waitConcurrency();
                     }
                     else {
                         throw err;
@@ -97,7 +100,6 @@ class Stream extends events_1.EventEmitter {
         if (event === "error") {
             return super.emit(event, body);
         }
-        debug(`Emitting event ${event} for ${this.options.bucket}:${this.options.streamId}...`);
         const bodyT = body;
         this.write(() => __awaiter(this, void 0, void 0, function* () { return [{ name: event, body: bodyT }]; }))
             .catch((err) => super.emit("error", err));
@@ -127,21 +129,23 @@ class Stream extends events_1.EventEmitter {
         this.connectSync();
         return super.removeListener(event, listener);
     }
-    _connect() {
-        return __awaiter(this, void 0, void 0, function* () {
-            yield this.connectToBucket();
-            yield this.connectToProjection();
-        });
+    waitConcurrency() {
+        // wait and retry
+        const waitConcurrency = (this.options.waitInterval || DEFAULT_WAIT_INTERVAL) / 10;
+        return this.sleep(waitConcurrency);
     }
     connectSync() {
         this.connect()
             .catch((err) => super.emit("error", err));
     }
+    connectAsync() {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield this.connectToBucket();
+            yield this.connectToProjection();
+        });
+    }
     connectToBucket() {
         return __awaiter(this, void 0, void 0, function* () {
-            if (this.bucket) {
-                return;
-            }
             const es = new nestore.EventStore(this.options);
             yield es.connect();
             this.eventStore = es;
@@ -151,15 +155,12 @@ class Stream extends events_1.EventEmitter {
     connectToProjection() {
         const _super = name => super[name];
         return __awaiter(this, void 0, void 0, function* () {
-            if (this.projection) {
-                return;
-            }
             const bucket = this.bucket;
             if (!bucket) {
                 throw new Error("Not initialized");
             }
             const streamId = this.options.streamId;
-            const waitInterval = this.options.waitInterval || 2000;
+            const waitInterval = this.options.waitInterval || DEFAULT_WAIT_INTERVAL;
             const startingPoint = this.options.startingPoint || ReadStartingPoint.fromBeginning;
             let fromBucketRevision = 0;
             let lastStreamRevision = 0;
@@ -183,7 +184,9 @@ class Stream extends events_1.EventEmitter {
         });
     }
     applyCommit(commit) {
-        this.nextRevision = commit.StreamRevisionEnd;
+        if (!this.nextRevision || commit.StreamRevisionEnd > this.nextRevision) {
+            this.nextRevision = commit.StreamRevisionEnd;
+        }
         for (const e of commit.Events) {
             super.emit(e.name, e.body);
         }

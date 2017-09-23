@@ -14,4 +14,6 @@ stream.on("ping", (x) => {
     console.log("<== pong", x.id);
     stream.emit("pong", x);
 });
+// tslint:disable-next-line:no-console
+console.log("Waiting for ping...");
 //# sourceMappingURL=pong.js.map

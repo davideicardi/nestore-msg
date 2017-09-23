@@ -8,22 +8,43 @@ const startingPoint = nestoreMsg.ReadStartingPoint.fromLast;
 const waitInterval = 500;
 interface PingEvent {
 	id: number;
+	instanceId: string;
 	time: Date;
 }
-
 const stream = new nestoreMsg.Stream<PingEvent>({
 	url: mongodbConnection, bucket, streamId, startingPoint, waitInterval });
 
+const instanceId = makeId();
+let receivedCount = 0;
 stream.on("pong", (x) => {
+	receivedCount++;
+
 	const elapsed = new Date().getTime() - x.time.getTime();
 	// tslint:disable-next-line:no-console
-	console.log(`${x.id} received in ${elapsed}ms`);
+	console.log(`${x.id} received in ${elapsed}ms from ${x.instanceId} (tot: ${receivedCount})`);
 });
 
-let id = 1;
-setInterval(() => {
+for (let id = 0; id < 10; id++) {
 	// tslint:disable-next-line:no-console
 	console.log("ping ==>", id);
-	stream.emit("ping", {id, time: new Date()});
-	id++;
-}, 5000);
+	stream.emit("ping", {id, instanceId, time: new Date()});
+}
+
+// let id = 1;
+// setInterval(() => {
+// 	// tslint:disable-next-line:no-console
+// 	console.log("ping ==>", id);
+// 	stream.emit("ping", {id, instanceId, time: new Date()});
+// 	id++;
+// }, 200);
+
+function makeId()	{
+	let text = "";
+	const possible = "abcdefghijklmnopqrstuvwxyz";
+
+	for (let i = 0; i < 5; i++) {
+		text += possible.charAt(Math.floor(Math.random() * possible.length));
+	}
+
+	return text;
+}

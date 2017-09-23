@@ -13,7 +13,7 @@ const nestoreMsg = require("../index");
 const uuid = require("uuid");
 const mongodbConnection = "mongodb://localhost:27017/nestore-msg";
 describe("Given a Stream", function () {
-    this.slow(500);
+    this.slow(600);
     this.timeout(20000);
     let bucketName;
     let stream;

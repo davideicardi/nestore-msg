@@ -66,6 +66,7 @@ class Stream extends events_1.EventEmitter {
                     if (events.length === 0) {
                         return;
                     }
+                    // TODO: Check that events doesn't not have reserved name: error, wait, data, close
                     const expectedRevision = this.nextRevision;
                     if (expectedRevision === undefined) {
                         throw new Error("Invalid revision");

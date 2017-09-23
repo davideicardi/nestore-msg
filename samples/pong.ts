@@ -1,7 +1,6 @@
 // tslint:disable:no-console
 
 import * as nestoreMsg from "../index";
-import * as uuid from "uuid";
 import {ProgressLogger} from "progress-logger-js";
 
 const progress = new ProgressLogger();

@@ -1,7 +1,6 @@
 // tslint:disable:no-console
 
 import * as nestoreMsg from "../index";
-import * as uuid from "uuid";
 
 const mongodbConnection = "mongodb://localhost:27017/nestore-msg";
 const bucket = "pingpong";

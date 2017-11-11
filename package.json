@@ -17,22 +17,22 @@
   "author": "Davide Icardi",
   "license": "ISC",
   "devDependencies": {
-    "@types/mocha": "2.2.43",
+    "@types/mocha": "2.2.44",
     "@types/chai": "4.0.4",
     "uuid": "3.1.0",
     "chai": "4.1.2",
-    "mocha": "3.5.0",
+    "mocha": "4.0.1",
     "progress-logger-js": "0.5.0",
-    "tslint": "5.6.0",
-    "typescript": "2.5.2"
+    "tslint": "5.8.0",
+    "typescript": "2.6.1"
   },
   "dependencies": {
-    "@types/uuid": "2.0.29",
+    "@types/uuid": "3.4.3",
     "@types/debug": "0.0.30",
-    "@types/mongodb": "2.2.8",
-    "@types/node": "8.0.24",
-    "mongodb": "2.2.30",
-    "debug": "3.0.1",
-    "nestore-js-mongodb": "1.6.3"
+    "@types/mongodb": "2.2.15",
+    "@types/node": "8.0.51",
+    "mongodb": "2.2.33",
+    "debug": "3.1.0",
+    "nestore-js-mongodb": "1.6.4"
   }
 }

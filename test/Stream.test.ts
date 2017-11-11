@@ -1,10 +1,9 @@
 "use strict";
 
-import {assert} from "chai";
+import {assert} from "chai"; // tslint:disable-line:no-implicit-dependencies
 import * as nestore from "nestore-js-mongodb";
 import * as nestoreMsg from "../index";
-import * as mongodb from "mongodb";
-import * as uuid from "uuid";
+import * as uuid from "uuid"; // tslint:disable-line:no-implicit-dependencies
 
 const mongodbConnection = "mongodb://localhost:27017/nestore-msg";
 
@@ -36,7 +35,7 @@ describe("Given a Stream", function() {
 	it("should be possile to subscribe to wait event", async function() {
 		await new Promise((resolve, reject) => {
 			stream.on("error", (err) => reject(err));
-			stream.once("wait", (body) => resolve());
+			stream.once("wait", () => resolve());
 		});
 	});
 
@@ -120,6 +119,7 @@ describe("Given a Stream", function() {
 			const colCounters = eventStore.db.collection("counters");
 			await colCounters.deleteOne({ _id: bucketName });
 		}
+		await eventStore.close();
 	}
 });
 

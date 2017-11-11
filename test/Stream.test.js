@@ -8,10 +8,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const chai_1 = require("chai");
+const chai_1 = require("chai"); // tslint:disable-line:no-implicit-dependencies
 const nestore = require("nestore-js-mongodb");
 const nestoreMsg = require("../index");
-const uuid = require("uuid");
+const uuid = require("uuid"); // tslint:disable-line:no-implicit-dependencies
 const mongodbConnection = "mongodb://localhost:27017/nestore-msg";
 describe("Given a Stream", function () {
     this.slow(1300);
@@ -42,7 +42,7 @@ describe("Given a Stream", function () {
         return __awaiter(this, void 0, void 0, function* () {
             yield new Promise((resolve, reject) => {
                 stream.on("error", (err) => reject(err));
-                stream.once("wait", (body) => resolve());
+                stream.once("wait", () => resolve());
             });
         });
     });
@@ -125,6 +125,7 @@ describe("Given a Stream", function () {
                 const colCounters = eventStore.db.collection("counters");
                 yield colCounters.deleteOne({ _id: bucketName });
             }
+            yield eventStore.close();
         });
     }
 });

@@ -204,7 +204,7 @@ export class Stream<T> extends EventEmitter {
 			this.applyCommit(doc);
 		})
 		.on("error", (err) => super.emit("error", err))
-		.on("wait", (data) => super.emit("wait", {}))
+		.on("wait", () => super.emit("wait", {}))
 		.on("close", () => {});
 	}
 

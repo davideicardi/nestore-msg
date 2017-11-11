@@ -179,7 +179,7 @@ class Stream extends events_1.EventEmitter {
                 this.applyCommit(doc);
             })
                 .on("error", (err) => _super("emit").call(this, "error", err))
-                .on("wait", (data) => _super("emit").call(this, "wait", {}))
+                .on("wait", () => _super("emit").call(this, "wait", {}))
                 .on("close", () => { });
         });
     }

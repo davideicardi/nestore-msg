@@ -1,6 +1,6 @@
 {
   "name": "nestore-msg",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Send, receive and store messages using MongoDb, allowing (micro)service communication",
   "main": "./index.js",
   "types": "./index.d.ts",
